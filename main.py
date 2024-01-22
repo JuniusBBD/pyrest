@@ -1,46 +1,47 @@
 from fastapi import FastAPI, File, UploadFile, HTTPException
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel
-import cv2
-import pytesseract
-from io import BytesIO
-import numpy as np
+import easyocr
+import io
+import tempfile
+import os
 
 app = FastAPI()
 
-# Set the path to the Tesseract executable (if not in PATH)
-# pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
+# Define EasyOCR reader
+reader = easyocr.Reader(['en'])
 
-class ExtractedTextResponse(BaseModel):
-    text: str
+class ExtractedTextResponse:
+    def __init__(self, text):
+        self.text = text
 
-
-@app.get('/')
-async def home():
-  return {"name": "Junius"}
-
-@app.post("/ocr-image")
-async def create_upload_file(file: UploadFile):
+@app.post("/extract_text")
+async def extract_text_from_image(file: UploadFile = File(...)):
     # Ensure the uploaded file is an image
     if not file.content_type.startswith("image"):
         raise HTTPException(status_code=400, detail="File must be an image")
 
-    # Read the image using OpenCV
-    contents = await file.read()
+    # Create a temporary file to save the uploaded image
+    with tempfile.NamedTemporaryFile(delete=False) as temp_image:
+        temp_image.write(await file.read())
+        temp_image_path = temp_image.name
 
-    # Convert the bytes to a NumPy array
-    np_array = np.frombuffer(contents, np.uint8)
+    try:
+        # Read the image using EasyOCR by providing the file path
+        result = reader.readtext(temp_image_path)
 
-    # Decode the image
-    image = cv2.imdecode(np_array, cv2.IMREAD_COLOR)
+        # Extract text from the EasyOCR result
+        extracted_text = ' '.join([text[1] for text in result])
 
-    # Convert the image to grayscale
-    gray_image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+        # Create a response object
+        response = ExtractedTextResponse(text=extracted_text)
 
-    # Use pytesseract to extract text
-    text = pytesseract.image_to_string(gray_image)
+        return JSONResponse(content=response.__dict__)
 
-    # Create a response object
-    response = ExtractedTextResponse(text=text)
+    finally:
+        # Cleanup: Delete the temporary file
+        os.remove(temp_image_path)
 
-    return JSONResponse(content=response.dict())
+if __name__ == "__main__":
+    import uvicorn
+
+    uvicorn.run(app, host="127.0.0.1", port=8000)
