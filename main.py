@@ -40,8 +40,3 @@ async def extract_text_from_image(file: UploadFile = File(...)):
     finally:
         # Cleanup: Delete the temporary file
         os.remove(temp_image_path)
-
-if __name__ == "__main__":
-    import uvicorn
-
-    uvicorn.run(app, host="127.0.0.1", port=1000)
