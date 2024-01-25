@@ -1,0 +1,6 @@
+services:
+  - name: pyrest
+    buildCommand: "docker build -t julekgwa/pyrest ."
+    startCommand: "docker run -p 8080:80 -d julekgwa/pyrest"
+    healthCheckPath: "/"
+    healthCheckIntervalSeconds: 60
