@@ -1,3 +1,4 @@
 easyocr==1.7.1
 fastapi==0.109.0
 Pillow==10.2.0
+uvicorn==0.26.0
